@@ -121,6 +121,12 @@ const Dashboard = () => {
             >
               👥 Users
             </button>
+            <button
+              onClick={() => navigate('/video-call')}
+              style={styles.navButton}
+            >
+              📹 Video Call
+            </button>
           </nav>
         </div>
         <div style={styles.headerRight}>

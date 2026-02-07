@@ -6,6 +6,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
+import VideoCallWithProtection from './components/VideoCall';
 
 function App() {
   return (
@@ -29,6 +30,10 @@ function App() {
                 <UserManagement />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/video-call"
+            element={<VideoCallWithProtection />}
           />
         </Routes>
       </BrowserRouter>

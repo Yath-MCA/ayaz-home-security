@@ -5,6 +5,7 @@ A modern React-based security system dashboard for monitoring cameras and alerts
 ## Features
 
 - 🎥 Multi-camera support with live video streaming
+- 📹 **Video Call & Chat** – multi-user video calls and real-time text chat (room-based)
 - 🔔 Real-time alert notifications
 - 📱 Responsive design (desktop, tablet, mobile)
 - 🎨 Dark theme UI
@@ -25,6 +26,18 @@ npm run dev
 ```
 
 The app will open at `http://localhost:3000`
+
+### Run Video Call signaling server (for Video Call & Chat)
+
+Multi-user video call and chat need a small signaling server. In a separate terminal:
+
+```bash
+cd server
+npm install
+npm start
+```
+
+Server runs at `http://localhost:3002`. Set `VITE_SIGNALING_URL` in `.env` if you use a different URL.
 
 ### Build for Production
 

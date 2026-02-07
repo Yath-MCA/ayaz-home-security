@@ -50,6 +50,11 @@ const Home = () => {
               </button>
             )}
             {user && (
+              <button onClick={() => navigate('/video-call')} style={styles.secondaryButton}>
+                📹 Video Call
+              </button>
+            )}
+            {user && (
               <button onClick={() => { logout(); navigate('/login'); }} style={styles.logoutButton}>
                 Logout
               </button>
