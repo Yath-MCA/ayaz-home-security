@@ -13,6 +13,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const peersRef = useRef({});
   const localStreamRef = useRef(null);
   const socketRef = useRef(null);
+  const myPeerIdRef = useRef(null);
 
   useEffect(() => {
     const socket = io(signalingUrl, { autoConnect: true });
@@ -23,6 +24,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     });
 
     socket.on('room-joined', async ({ peerId, participants: list }) => {
+      myPeerIdRef.current = peerId;
       setMyPeerId(peerId);
       setConnected(true);
       setParticipants(list || []);
@@ -87,7 +89,11 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     });
 
     socket.on('chat-message', (msg) => {
-      setMessages((prev) => [...prev.slice(-199), msg]);
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && msg.from === myPeerIdRef.current && last.message === msg.message) return prev;
+        return [...prev.slice(-199), msg];
+      });
     });
 
     socket.on('error', (err) => setError(err.message || 'Connection error'));
@@ -104,6 +110,17 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     e.preventDefault();
     const text = chatInput.trim();
     if (!text || !socketRef.current) return;
+    if (!socketRef.current.connected) {
+      setError('Not connected. Reconnecting...');
+      return;
+    }
+    const payload = {
+      from: myPeerIdRef.current || myPeerId,
+      displayName,
+      message: text,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev.slice(-199), payload]);
     socketRef.current.emit('chat-message', text);
     setChatInput('');
   };
