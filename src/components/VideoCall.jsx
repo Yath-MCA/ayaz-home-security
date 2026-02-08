@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ProtectedRoute from './ProtectedRoute';
 import VideoCallRoom from './VideoCallRoom';
+import useServerActive from '../hooks/useServerActive';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'http://localhost:3002';
 
@@ -15,6 +16,8 @@ const VideoCall = () => {
   const previewVideoRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(SIGNALING_URL);
 
   const defaultName = user?.fullName || user?.username || '';
 
@@ -50,6 +53,12 @@ const VideoCall = () => {
   const handleJoin = (e) => {
     e.preventDefault();
     setError('');
+
+    if (!serverActive) {
+      setError('Server is in sleep mode. Please wake the server to start a call.');
+      return;
+    }
+
     const rid = roomId.trim();
     const name = (displayName || defaultName || 'Guest').trim();
     if (!rid) {
@@ -82,6 +91,36 @@ const VideoCall = () => {
         <h1 style={styles.title}>VigilRoom Secure Video</h1>
       </header>
 
+      <div style={styles.serverBanner}>
+        <div style={styles.serverBannerLeft}>
+          <div style={styles.serverPill}>
+            <span style={{ ...styles.serverDot, background: serverActive ? '#10b981' : '#f59e0b' }} />
+            <span style={styles.serverText}>
+              {serverChecking ? 'Checking server...' : serverWaking ? 'Waking up server...' : serverActive ? 'Server Active' : 'Server Sleeping'}
+            </span>
+          </div>
+          {!serverActive && !serverWaking && !serverChecking && (
+            <span style={styles.serverHint}>Wake the server before joining a room.</span>
+          )}
+        </div>
+        <div style={styles.serverBannerRight}>
+          {!serverActive && (
+            <button
+              type="button"
+              onClick={() => wake()}
+              disabled={serverWaking || serverChecking}
+              style={{
+                ...styles.wakeBtn,
+                opacity: serverWaking || serverChecking ? 0.7 : 1,
+                cursor: serverWaking || serverChecking ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {serverWaking ? 'Waking...' : 'Wake Server'}
+            </button>
+          )}
+        </div>
+      </div>
+
       <div style={styles.content}>
         <div style={styles.previewCard}>
           <div style={styles.videoWrapper}>
@@ -99,6 +138,11 @@ const VideoCall = () => {
           <p style={styles.hint}>Enter or generate a room ID to connect securely with your family.</p>
           <form onSubmit={handleJoin} style={styles.form}>
             {error && <div style={styles.error}>{error}</div>}
+            {!serverActive && (
+              <div style={styles.info}>
+                Server is in sleep mode. Click <strong>Wake Server</strong> above, then join.
+              </div>
+            )}
             <div style={styles.field}>
               <div style={styles.labelRow}>
                 <label style={styles.label}>Room Identifier</label>
@@ -112,6 +156,7 @@ const VideoCall = () => {
                 onChange={(e) => setRoomId(e.target.value)}
                 placeholder="e.g. Shield-Port-402"
                 style={styles.input}
+                disabled={!serverActive}
                 autoFocus
               />
             </div>
@@ -123,9 +168,12 @@ const VideoCall = () => {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="How others see you"
                 style={styles.input}
+                disabled={!serverActive}
               />
             </div>
-            <button type="submit" style={styles.joinBtn}>Enter Room</button>
+            <button type="submit" style={{ ...styles.joinBtn, opacity: serverActive ? 1 : 0.6, cursor: serverActive ? 'pointer' : 'not-allowed' }} disabled={!serverActive}>
+              Enter Room
+            </button>
           </form>
         </div>
       </div>
@@ -147,6 +195,64 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
+  },
+  serverBanner: {
+    maxWidth: '1000px',
+    margin: '0 auto 26px auto',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    padding: '14px 16px',
+    borderRadius: '16px',
+    background: 'rgba(30, 41, 59, 0.35)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  serverBannerLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  serverBannerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  serverPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 12px',
+    borderRadius: '999px',
+    background: 'rgba(2, 6, 23, 0.5)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    width: 'fit-content',
+  },
+  serverDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '999px',
+    display: 'inline-block',
+  },
+  serverText: {
+    fontSize: '12px',
+    fontWeight: '800',
+    color: '#e2e8f0',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  serverHint: {
+    fontSize: '13px',
+    color: '#94a3b8',
+  },
+  wakeBtn: {
+    background: '#f59e0b',
+    border: 'none',
+    color: '#0b1220',
+    fontSize: '13px',
+    fontWeight: '900',
+    padding: '10px 14px',
+    borderRadius: '12px',
   },
   backBtn: {
     width: '40px',
@@ -252,6 +358,15 @@ const styles = {
     borderRadius: '12px',
     color: '#fca5a5',
     fontSize: '14px',
+  },
+  info: {
+    padding: '14px',
+    background: 'rgba(59, 130, 246, 0.08)',
+    border: '1px solid rgba(59, 130, 246, 0.18)',
+    borderRadius: '12px',
+    color: '#cbd5e1',
+    fontSize: '14px',
+    lineHeight: 1.5,
   },
   joinBtn: {
     padding: '16px',
