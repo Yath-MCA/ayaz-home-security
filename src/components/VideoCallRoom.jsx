@@ -122,10 +122,22 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
       localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current));
     }
     pc.ontrack = (e) => {
+      console.log('[WebRTC] ontrack event for peer:', peerId, 'stream:', e.streams[0]);
       const vid = remoteVideosRef.current[peerId];
-      if (vid && vid.srcObject !== e.streams[0]) {
+      if (vid) {
+        console.log('[WebRTC] Setting srcObject for peer:', peerId);
         vid.srcObject = e.streams[0];
-        vid.play?.().catch(() => {});
+        vid.play?.().catch(err => console.warn('[WebRTC] Play error:', err));
+      } else {
+        console.warn('[WebRTC] Video element not found for peer:', peerId);
+        setTimeout(() => {
+          const retryVid = remoteVideosRef.current[peerId];
+          if (retryVid && !retryVid.srcObject) {
+            console.log('[WebRTC] Retry: Setting srcObject for peer:', peerId);
+            retryVid.srcObject = e.streams[0];
+            retryVid.play?.().catch(err => console.warn('[WebRTC] Retry play error:', err));
+          }
+        }, 100);
       }
     };
     pc.onicecandidate = (e) => {
@@ -230,9 +242,19 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
               </div>
             </div>
             {/* Remote videos */}
-            {participants.map(p => (
+            {participants.filter(p => p.id !== myPeerId).map(p => (
               <div key={p.id} style={st.videoCard}>
-                <video ref={el => { if (el) remoteVideosRef.current[p.id] = el; }} autoPlay playsInline style={st.video} />
+                <video 
+                  ref={el => { 
+                    if (el) {
+                      remoteVideosRef.current[p.id] = el;
+                      console.log('[VideoCallRoom] Video element registered for peer:', p.id);
+                    }
+                  }} 
+                  autoPlay 
+                  playsInline 
+                  style={st.video} 
+                />
                 {!p.isCamOn && <div style={st.avatar}><span style={st.avatarText}>{initial(p.displayName)}</span></div>}
                 <div style={st.nameTag}>
                   {!p.isMicOn && <span style={st.muteBadge}>
