@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export default function useServerActive(baseUrl, {
   pollIntervalMs = 0,
+  proxyBaseUrl = '',
 } = {}) {
   const [active, setActive] = useState(true);
   const [checking, setChecking] = useState(false);
@@ -15,8 +16,15 @@ export default function useServerActive(baseUrl, {
     return baseUrl.replace(/\/$/, '');
   }, [baseUrl]);
 
+  const normalizedProxyBaseUrl = useMemo(() => {
+    if (!proxyBaseUrl) return '';
+    return proxyBaseUrl.replace(/\/$/, '');
+  }, [proxyBaseUrl]);
+
+  const statusBase = normalizedProxyBaseUrl || normalizedBaseUrl;
+
   const fetchStatus = useCallback(async () => {
-    if (!normalizedBaseUrl) return null;
+    if (!statusBase) return null;
 
     try {
       setChecking(true);
@@ -26,7 +34,7 @@ export default function useServerActive(baseUrl, {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const res = await fetch(`${normalizedBaseUrl}/status`, {
+      const res = await fetch(`${statusBase}/status`, {
         method: 'GET',
         signal: controller.signal,
       });
@@ -42,16 +50,16 @@ export default function useServerActive(baseUrl, {
     } finally {
       setChecking(false);
     }
-  }, [normalizedBaseUrl]);
+  }, [statusBase]);
 
   const wake = useCallback(async () => {
-    if (!normalizedBaseUrl) return false;
+    if (!statusBase) return false;
 
     try {
       setWaking(true);
       setError(null);
 
-      const res = await fetch(`${normalizedBaseUrl}/wake`, {
+      const res = await fetch(`${statusBase}/wake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -66,7 +74,7 @@ export default function useServerActive(baseUrl, {
     } finally {
       setWaking(false);
     }
-  }, [normalizedBaseUrl]);
+  }, [statusBase]);
 
   useEffect(() => {
     fetchStatus();
@@ -74,7 +82,7 @@ export default function useServerActive(baseUrl, {
     if (!pollIntervalMs) return;
     const id = setInterval(fetchStatus, pollIntervalMs);
     return () => clearInterval(id);
-  }, [fetchStatus, pollIntervalMs]);
+  }, [normalizedBaseUrl, fetchStatus, pollIntervalMs]);
 
   useEffect(() => {
     return () => {

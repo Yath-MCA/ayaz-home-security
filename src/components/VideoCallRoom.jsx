@@ -10,7 +10,9 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
 
-  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(signalingUrl);
+  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(signalingUrl, {
+    proxyBaseUrl: '/api',
+  });
   const { socket, connected: socketConnected, error: socketError } = useSocket(signalingUrl, {
     enabled: Boolean(signalingUrl) && serverActive && !serverWaking,
     transports: ['websocket'],

@@ -17,7 +17,9 @@ const VideoCall = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(SIGNALING_URL);
+  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(SIGNALING_URL, {
+    proxyBaseUrl: '/api',
+  });
 
   const defaultName = user?.fullName || user?.username || '';
 
