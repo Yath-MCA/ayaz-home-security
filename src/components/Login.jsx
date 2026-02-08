@@ -36,8 +36,18 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {error && (
-            <div style={styles.error}>
-              {error}
+            <div style={styles.errorContainer}>
+              <div style={styles.errorText}>{error}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                style={styles.resetBtn}
+              >
+                🔄 Reset System
+              </button>
             </div>
           )}
 
@@ -199,14 +209,37 @@ const styles = {
     marginTop: '8px',
   },
 
-  error: {
+  errorContainer: {
     padding: '12px',
-    background: 'rgba(239, 68, 68, 0.2)',
-    border: '1px solid rgba(239, 68, 68, 0.5)',
-    borderRadius: '8px',
+    background: 'rgba(239, 68, 68, 0.15)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '10px',
+    marginBottom: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px',
+  },
+
+  errorText: {
     color: '#fca5a5',
     fontSize: '14px',
     textAlign: 'center',
+    fontWeight: '500',
+  },
+
+  resetBtn: {
+    padding: '6px 14px',
+    background: 'rgba(239, 68, 68, 0.2)',
+    border: '1px solid rgba(239, 68, 68, 0.4)',
+    borderRadius: '6px',
+    color: '#fff',
+    fontSize: '11px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    transition: 'all 0.2s',
   },
 
   footer: {
