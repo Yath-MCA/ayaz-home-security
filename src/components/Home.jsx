@@ -14,7 +14,7 @@ const Home = () => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.navTitle}>VigilSafe Security</h1>
+        <h1 onClick={() => navigate('/')} style={{ ...styles.navTitle, cursor: 'pointer' }}>🏠 Family Security</h1>
         {user && (
           <div style={styles.headerRight}>
             <button onClick={() => navigate('/users')} style={styles.navLink}>Users</button>

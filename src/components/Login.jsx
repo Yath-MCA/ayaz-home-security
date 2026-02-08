@@ -7,6 +7,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -53,16 +54,23 @@ const Login = () => {
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
+          <div style={styles.passwordWrapper}>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
+              style={{ ...styles.input, width: '100%', paddingRight: '45px', boxSizing: 'border-box' }}
               placeholder="Enter password"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={styles.eyeBtn}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? '👁️' : '🙈'}
+            </button>
           </div>
 
           <button
@@ -150,6 +158,32 @@ const styles = {
     fontSize: '14px',
     outline: 'none',
     transition: 'all 200ms',
+  },
+
+  passwordWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+  },
+
+  eyeBtn: {
+    position: 'absolute',
+    right: '12px',
+    background: 'none',
+    border: 'none',
+    color: '#94a3b8',
+    cursor: 'pointer',
+    padding: '4px',
+    fontSize: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'transform 0.2s',
+    zIndex: 2,
+    '&:hover': {
+      transform: 'scale(1.1)',
+    }
   },
 
   button: {

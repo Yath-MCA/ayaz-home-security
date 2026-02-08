@@ -107,7 +107,7 @@ const Dashboard = () => {
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
-          <h1 style={styles.title}>🏠 Family Security</h1>
+          <h1 onClick={() => navigate('/')} style={{ ...styles.title, cursor: 'pointer' }}>🏠 Family Security</h1>
           <nav style={styles.nav}>
             <button
               onClick={() => navigate('/dashboard')}

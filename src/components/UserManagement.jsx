@@ -165,7 +165,7 @@ const UserManagement = () => {
     <div style={styles.container}>
       <div style={styles.topHeader}>
         <div style={styles.headerLeft}>
-          <h1 style={styles.title}>👥 User Management</h1>
+          <h1 onClick={() => navigate('/')} style={{ ...styles.title, cursor: 'pointer' }}>🏠 Family Security</h1>
           <nav style={styles.nav}>
             <button onClick={() => navigate('/dashboard')} style={styles.navButton}>📹 Dashboard</button>
             <button onClick={() => navigate('/users')} style={styles.navButtonActive}>👥 Users</button>
