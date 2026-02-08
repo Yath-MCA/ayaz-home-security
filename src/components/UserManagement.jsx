@@ -24,6 +24,7 @@ const UserManagement = () => {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -67,6 +68,7 @@ const UserManagement = () => {
     });
     setError('');
     setSuccess('');
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -81,6 +83,7 @@ const UserManagement = () => {
     });
     setError('');
     setSuccess('');
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -308,14 +311,24 @@ const UserManagement = () => {
                 <label style={styles.label}>
                   Password {editingUser ? '(leave empty to keep current)' : '*'}
                 </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  style={styles.input}
-                  required={!editingUser}
-                />
+                <div style={styles.passwordWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    style={{ ...styles.input, width: '100%', paddingRight: '45px', boxSizing: 'border-box' }}
+                    required={!editingUser}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={styles.eyeBtn}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
               </div>
 
               <div style={styles.inputGroup}>
@@ -708,6 +721,34 @@ const styles = {
     color: '#fff',
     fontSize: '14px',
     outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+
+  passwordWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+  },
+
+  eyeBtn: {
+    position: 'absolute',
+    right: '12px',
+    background: 'none',
+    border: 'none',
+    color: '#94a3b8',
+    cursor: 'pointer',
+    padding: '4px',
+    fontSize: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'transform 0.2s',
+    zIndex: 2,
+    '&:hover': {
+      transform: 'scale(1.1)',
+    }
   },
 
   select: {

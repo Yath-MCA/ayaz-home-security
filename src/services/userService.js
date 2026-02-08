@@ -2,44 +2,93 @@
 
 const STORAGE_KEY = 'usersData';
 
-// Initialize with default admin user if no data exists
+const DEFAULT_USERS = [
+  {
+    id: '1',
+    username: 'admin1',
+    password: 'admin123',
+    email: 'admin1@security.com',
+    role: 'admin',
+    fullName: 'Admini-Ayaz',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    username: 'admin2',
+    password: 'admin123',
+    email: 'admin2@security.com',
+    role: 'admin',
+    fullName: 'Admin-Safy',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    username: 'admin3',
+    password: 'admin123',
+    email: 'admin3@security.com',
+    role: 'admin',
+    fullName: 'Admin-Haji',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '4',
+    username: 'admin4',
+    password: 'admin123',
+    email: 'admin4@security.com',
+    role: 'admin',
+    fullName: 'Admin-Affae',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '5',
+    username: 'admin5',
+    password: 'admin123',
+    email: 'admin5@security.com',
+    role: 'admin',
+    fullName: 'Admin-Zaid',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '6',
+    username: 'guest1',
+    password: 'guest123',
+    email: 'guest@security.com',
+    role: 'user',
+    fullName: 'Family-Guest',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '7',
+    username: 'guard1',
+    password: 'guard123',
+    email: 'guard@security.com',
+    role: 'user',
+    fullName: 'Security-Zakir',
+    createdAt: new Date().toISOString(),
+  }
+];
+
+// Initialize with default users if no data exists
 const initializeUsers = () => {
   const existing = localStorage.getItem(STORAGE_KEY);
   if (!existing) {
-    const defaultUsers = [
-      {
-        id: '1',
-        username: 'admin',
-        password: 'admin123',
-        email: 'admin@security.com',
-        role: 'admin',
-        fullName: 'Administrator',
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
-    return defaultUsers;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
+    return DEFAULT_USERS;
   }
-  
+
   const users = JSON.parse(existing);
-  
-  // Ensure default admin user exists (in case it was deleted)
-  const adminExists = users.some(u => u.username === 'admin');
+
+  // Ensure leading admin exists
+  const adminExists = users.some(u => u.username.startsWith('admin'));
   if (!adminExists) {
-    const defaultAdmin = {
-      id: '1',
-      username: 'admin',
-      password: 'admin123',
-      email: 'admin@security.com',
-      role: 'admin',
-      fullName: 'Administrator',
-      createdAt: new Date().toISOString(),
-    };
-    users.unshift(defaultAdmin);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    return users;
+    const updatedUsers = [...DEFAULT_USERS, ...users];
+    // Remove duplicates if any
+    const uniqueUsers = Array.from(new Set(updatedUsers.map(u => u.username)))
+      .map(uname => updatedUsers.find(u => u.username === uname));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueUsers));
+    return uniqueUsers;
   }
-  
+
   return users;
 };
 
@@ -87,14 +136,14 @@ export const updateUser = (id, userData) => {
   if (index === -1) {
     throw new Error('User not found');
   }
-  
+
   // Preserve password if not provided
   const updatedUser = {
     ...users[index],
     ...userData,
     id, // Ensure ID doesn't change
   };
-  
+
   users[index] = updatedUser;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
   const { password, ...userWithoutPassword } = updatedUser;
@@ -135,7 +184,7 @@ export const importUsers = (file) => {
           // Validate and merge with existing users
           const existingUsers = initializeUsers();
           const merged = [...existingUsers];
-          
+
           importedUsers.forEach(importedUser => {
             const existingIndex = merged.findIndex(u => u.id === importedUser.id || u.username === importedUser.username);
             if (existingIndex >= 0) {
@@ -149,7 +198,7 @@ export const importUsers = (file) => {
               merged.push(importedUser);
             }
           });
-          
+
           localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           resolve(merged);
         } else {
@@ -166,17 +215,6 @@ export const importUsers = (file) => {
 
 // Reset to default users (useful for troubleshooting)
 export const resetToDefaultUsers = () => {
-  const defaultUsers = [
-    {
-      id: '1',
-      username: 'admin',
-      password: 'admin123',
-      email: 'admin@security.com',
-      role: 'admin',
-      fullName: 'Administrator',
-      createdAt: new Date().toISOString(),
-    },
-  ];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
-  return defaultUsers;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
+  return DEFAULT_USERS;
 };

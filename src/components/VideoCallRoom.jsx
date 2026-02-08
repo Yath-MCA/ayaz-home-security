@@ -146,9 +146,23 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   };
 
   const copyRoomId = () => {
-    navigator.clipboard.writeText(roomId);
+    const url = `${window.location.origin}/video-call?room=${roomId}`;
+    navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareToSocial = (platform) => {
+    const url = `${window.location.origin}/video-call?room=${roomId}`;
+    const text = `Join my secure video room on VigilSafe: ${roomId}`;
+    let shareUrl = '';
+
+    switch (platform) {
+      case 'whatsapp': shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`; break;
+      case 'telegram': shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`; break;
+      default: copyRoomId(); return;
+    }
+    window.open(shareUrl, '_blank');
   };
 
   const sendMessage = (e) => {
@@ -173,6 +187,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     onLeave();
   };
 
+  const IconShare = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>;
   const IconMic = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>;
   const IconMicOff = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23" /><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" /><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>;
   const IconCam = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>;
@@ -189,14 +204,18 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
             <span style={styles.roomLabel}>SECURE ROOM</span>
             <div style={styles.roomIdRow} onClick={copyRoomId}>
               <span style={styles.roomIdText}>{roomId}</span>
-              <span style={styles.copyBadge}>{copied ? 'Copied!' : 'Copy'}</span>
+              <span style={styles.copyBadge}>{copied ? 'Link Copied!' : 'Copy Link'}</span>
             </div>
           </div>
         </div>
         <div style={styles.headerRight}>
+          <div style={styles.socialShare}>
+            <button onClick={() => shareToSocial('whatsapp')} style={styles.shareIconBtn} title="Share to WhatsApp">🟢</button>
+            <button onClick={() => shareToSocial('telegram')} style={styles.shareIconBtn} title="Share to Telegram">🔵</button>
+          </div>
           {connected && <div style={styles.statusIndicator}>● <span style={{ fontSize: '11px' }}>LIVE</span></div>}
-          <div style={styles.participantCount}>
-            {participants.length + 1} Participant{participants.length !== 0 ? 's' : ''}
+          <div style={styles.participantCount} title={participants.map(p => p.displayName).join(', ')}>
+            👥 {participants.length + 1}
           </div>
         </div>
       </header>
@@ -210,28 +229,27 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
               <video ref={localVideoRef} autoPlay playsInline muted style={styles.video} />
               {!isCamOn && <div style={styles.videoPlaceholder}>{displayName[0]}</div>}
               <div style={styles.videoLabel}>
-                {!isMicOn && <span style={styles.muteIcon}>🔇</span>}
+                {!isMicOn && <span style={styles.muteIndicator}>🔇</span>}
                 You ({displayName})
               </div>
             </div>
-            {participants.filter((p) => p.id !== myPeerId).map((p) => (
+            {participants.map((p) => (
               <div key={p.id} style={styles.videoTile}>
                 <video
-                  ref={(el) => { remoteVideosRef.current[p.id] = el; }}
+                  ref={(el) => { if (el) remoteVideosRef.current[p.id] = el; }}
                   autoPlay
                   playsInline
                   style={styles.video}
                 />
                 {!p.isCamOn && <div style={styles.videoPlaceholder}>{p.displayName?.[0] || '?'}</div>}
                 <div style={styles.videoLabel}>
-                  {!p.isMicOn && <span style={styles.muteIcon}>🔇</span>}
+                  {!p.isMicOn && <span style={styles.muteIndicator}>🔇</span>}
                   {p.displayName}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Floating Control Bar */}
           <div style={styles.controlBar}>
             <button onClick={toggleMic} style={{ ...styles.controlBtn, background: isMicOn ? 'rgba(71, 85, 105, 0.4)' : '#ef4444' }}>
               {isMicOn ? <IconMic /> : <IconMicOff />}
@@ -242,6 +260,9 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
             <button onClick={() => setShowChat(!showChat)} style={{ ...styles.controlBtn, background: showChat ? '#3b82f6' : 'rgba(71, 85, 105, 0.4)' }}>
               <IconChat />
             </button>
+            <button onClick={copyRoomId} style={styles.controlBtn}>
+              <IconShare />
+            </button>
             <button onClick={leaveRoom} style={{ ...styles.controlBtn, background: 'rgba(239, 68, 68, 0.8)', marginLeft: '12px' }}>
               <IconLeave />
             </button>
@@ -251,8 +272,21 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
         {showChat && (
           <div style={styles.chatSection}>
             <div style={styles.chatHeader}>
-              <h3 style={styles.chatTitle}>Room Chat</h3>
+              <h3 style={styles.chatTitle}>Participants ({participants.length + 1})</h3>
             </div>
+            <div style={styles.participantList}>
+              <div style={styles.participantRow}>
+                <span style={styles.pCircle}>●</span>
+                <span style={styles.pName}>{displayName} (You)</span>
+              </div>
+              {participants.map(p => (
+                <div key={p.id} style={styles.participantRow}>
+                  <span style={{ ...styles.pCircle, color: '#10b981' }}>●</span>
+                  <span style={styles.pName}>{p.displayName}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
             <div style={styles.chatMessages}>
               {messages.length === 0 ? (
                 <div style={styles.chatEmpty}>No messages yet.</div>
@@ -281,7 +315,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message..."
+                placeholder="Message..."
                 style={styles.chatInput}
               />
               <button type="submit" style={styles.chatSend}>
@@ -335,8 +369,10 @@ const styles = {
   roomIdText: { fontSize: '16px', fontWeight: '600', color: '#e2e8f0' },
   copyBadge: { fontSize: '10px', background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' },
   headerRight: { display: 'flex', alignItems: 'center', gap: '16px' },
+  socialShare: { display: 'flex', gap: '8px' },
+  shareIconBtn: { background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', fontSize: '18px' },
   statusIndicator: { display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontSize: '14px', fontWeight: '700' },
-  participantCount: { fontSize: '13px', color: '#64748b', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '20px' },
+  participantCount: { fontSize: '13px', color: '#64748b', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '20px', fontWeight: '600' },
   errorBanner: {
     padding: '8px 24px',
     background: '#ef4444',
@@ -414,7 +450,7 @@ const styles = {
     gap: '6px',
     border: '1px solid rgba(255,255,255,0.1)',
   },
-  muteIcon: { fontSize: '14px' },
+  muteIndicator: { background: '#ef4444', padding: '2px', borderRadius: '4px', fontSize: '10px' },
   controlBar: {
     position: 'absolute',
     bottom: '24px',
@@ -439,7 +475,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.2s',
+    background: 'rgba(71, 85, 105, 0.4)',
   },
   chatSection: {
     width: '320px',
@@ -453,6 +490,10 @@ const styles = {
   },
   chatHeader: { padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' },
   chatTitle: { margin: 0, fontSize: '15px', fontWeight: '600' },
+  participantList: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  participantRow: { display: 'flex', alignItems: 'center', gap: '10px' },
+  pCircle: { fontSize: '10px', color: '#64748b' },
+  pName: { fontSize: '13px', color: '#cbd5e1' },
   chatMessages: {
     flex: 1,
     padding: '16px',
@@ -504,4 +545,3 @@ const styles = {
 };
 
 export default VideoCallRoom;
-
