@@ -28,6 +28,7 @@ const Home = () => {
   const features = [
     { id: 'dash', title: 'Security Dashboard', desc: 'Live feeds & alerts', icon: '🛡️', path: '/dashboard' },
     { id: 'video', title: 'Video Call', desc: 'Family video chat', icon: '🎥', path: '/video-call' },
+    { id: 'chat', title: 'Chat Room', desc: 'Text & image messaging', icon: '💬', path: '/chat' },
     { id: 'users', title: 'User Access', desc: 'Manage permissions', icon: '👥', path: '/users' },
   ];
 

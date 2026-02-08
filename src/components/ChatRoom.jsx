@@ -1,28 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import useServerActive from '../hooks/useServerActive';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'http://localhost:3002';
 const IS_LOCAL = !import.meta.env.VITE_SIGNALING_URL;
-const DEFAULT_QUICK_ROOM = 'room-SHFY';
+const DEFAULT_CHAT_ROOM = 'room-SHFY';
 
 const generateGuestName = () => {
-  const adjectives = ['Swift', 'Calm', 'Bright', 'Silent', 'Brave', 'Kind', 'Smart', 'Nova', 'Shadow', 'Crystal'];
-  const nouns = ['Visitor', 'Guest', 'Watcher', 'Guardian', 'Friend', 'Helper', 'Member', 'Partner', 'Caller', 'User'];
-  const a = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const n = nouns[Math.floor(Math.random() * nouns.length)];
-  return `${a}${n}${Math.floor(100 + Math.random() * 900)}`;
+  const adj = ['Swift', 'Calm', 'Bright', 'Silent', 'Brave', 'Kind', 'Smart', 'Nova', 'Shadow', 'Crystal'];
+  const noun = ['Visitor', 'Guest', 'Watcher', 'Guardian', 'Friend', 'Helper', 'Member', 'Partner', 'Caller', 'User'];
+  return `${adj[Math.floor(Math.random() * adj.length)]}${noun[Math.floor(Math.random() * noun.length)]}${Math.floor(100 + Math.random() * 900)}`;
 };
 
-const VideoCall = () => {
+const ChatRoom = () => {
   const [roomId, setRoomId] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [activeRooms, setActiveRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
-  const [previewStream, setPreviewStream] = useState(null);
-  const previewVideoRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,20 +36,6 @@ const VideoCall = () => {
     if (roomFromUrl && !roomId) setRoomId(roomFromUrl);
     if (!defaultName && !displayName) setDisplayName(nameFromUrl || generateGuestName());
   }, [location.search, roomId, defaultName, displayName]);
-
-  useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        setPreviewStream(stream);
-        if (previewVideoRef.current) previewVideoRef.current.srcObject = stream;
-      })
-      .catch(() => {});
-    return () => { previewStream?.getTracks().forEach(t => t.stop()); };
-  }, []);
-
-  useEffect(() => {
-    if (previewVideoRef.current && previewStream) previewVideoRef.current.srcObject = previewStream;
-  }, [previewStream]);
 
   const fetchRooms = async () => {
     try {
@@ -76,14 +58,13 @@ const VideoCall = () => {
   const goRoom = (rid) => {
     const name = (displayName || defaultName || 'Guest').trim();
     if (!name) { setError('Enter your name'); return; }
-    previewStream?.getTracks().forEach(t => t.stop());
-    navigate(`/room/${encodeURIComponent(rid)}`, { state: { displayName: name } });
+    navigate(`/chat/${encodeURIComponent(rid)}`, { state: { displayName: name } });
   };
 
   const quickJoin = () => {
     setError('');
     if (!serverActive) { setError('Wake the server first'); return; }
-    goRoom(DEFAULT_QUICK_ROOM);
+    goRoom(DEFAULT_CHAT_ROOM);
   };
 
   const handleJoin = (e) => {
@@ -102,16 +83,14 @@ const VideoCall = () => {
 
   return (
     <div style={st.page}>
-      {/* Top bar */}
       <div style={st.topBar}>
         <button onClick={() => navigate('/')} style={st.backBtn}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e9edef" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <span style={st.topTitle}>Video Call</span>
+        <span style={st.topTitle}>Chat Room</span>
       </div>
 
       <div style={st.body}>
-        {/* Server status */}
         <div style={st.serverRow}>
           <span style={{ ...st.dot, background: serverActive ? '#00a884' : '#f59e0b' }} />
           <span style={st.serverLabel}>
@@ -122,13 +101,11 @@ const VideoCall = () => {
           )}
         </div>
 
-        {/* Preview */}
-        <div style={st.previewWrap}>
-          <video ref={previewVideoRef} autoPlay playsInline muted style={st.previewVideo} />
-          {!previewStream && <div style={st.previewOff}>Camera off</div>}
+        <div style={st.iconWrap}>
+          <div style={st.icon}>💬</div>
+          <div style={st.iconLabel}>Secure Chat</div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleJoin} style={st.form}>
           {error && <div style={st.error}>{error}</div>}
 
@@ -142,10 +119,9 @@ const VideoCall = () => {
           />
 
           <button type="button" onClick={quickJoin} disabled={!serverActive} style={{ ...st.quickBtn, opacity: serverActive ? 1 : 0.5 }}>
-            Quick Join: {DEFAULT_QUICK_ROOM}
+            Quick Join: {DEFAULT_CHAT_ROOM}
           </button>
 
-          {/* Active rooms */}
           {activeRooms.length > 0 && (
             <div style={st.roomsList}>
               <div style={st.roomsLabel}>Active Rooms</div>
@@ -173,7 +149,7 @@ const VideoCall = () => {
           </div>
 
           <button type="submit" disabled={!serverActive} style={{ ...st.joinBtn, opacity: serverActive ? 1 : 0.5 }}>
-            Join Room
+            Join Chat
           </button>
         </form>
       </div>
@@ -191,9 +167,9 @@ const st = {
   dot: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
   serverLabel: { flex: 1, fontSize: '13px', fontWeight: '600', color: '#aebac1' },
   wakeBtn: { background: '#f59e0b', border: 'none', color: '#111b21', fontSize: '12px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' },
-  previewWrap: { position: 'relative', borderRadius: '12px', overflow: 'hidden', background: '#0b141a', aspectRatio: '16/10' },
-  previewVideo: { width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' },
-  previewOff: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px' },
+  iconWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '24px 0' },
+  icon: { fontSize: '56px' },
+  iconLabel: { fontSize: '16px', fontWeight: '600', color: '#aebac1' },
   form: { display: 'flex', flexDirection: 'column', gap: '12px' },
   error: { padding: '10px 14px', background: 'rgba(234,67,53,0.15)', borderRadius: '8px', color: '#f87171', fontSize: '13px' },
   input: { padding: '12px 14px', background: '#2a3942', border: 'none', borderRadius: '8px', color: '#e9edef', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' },
@@ -208,4 +184,4 @@ const st = {
   joinBtn: { width: '100%', padding: '14px', borderRadius: '8px', border: 'none', background: '#00a884', color: '#fff', fontWeight: '700', fontSize: '15px', cursor: 'pointer' },
 };
 
-export default VideoCall;
+export default ChatRoom;

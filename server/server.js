@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 const PORT = process.env.PORT || 3002;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
@@ -205,6 +205,37 @@ io.on('connection', (socket) => {
 
     io.to(roomId).emit('chat-message', payload);
     console.log('[socket] chat-message broadcast', { roomId, from: payload.from });
+  });
+
+  socket.on('chat-text', ({ roomId: rid, text }) => {
+    const roomId = rid || socket.data.roomId;
+    if (!roomId || !text) return;
+    const room = rooms.get(roomId);
+    const payload = {
+      id: `${socket.id}-${Date.now()}`,
+      from: socket.id,
+      displayName: room?.get(socket.id)?.displayName || 'Unknown',
+      type: 'text',
+      text,
+      timestamp: nowIso(),
+    };
+    io.to(roomId).emit('chat-msg', payload);
+  });
+
+  socket.on('chat-image', ({ roomId: rid, image, caption }) => {
+    const roomId = rid || socket.data.roomId;
+    if (!roomId || !image) return;
+    const room = rooms.get(roomId);
+    const payload = {
+      id: `${socket.id}-${Date.now()}`,
+      from: socket.id,
+      displayName: room?.get(socket.id)?.displayName || 'Unknown',
+      type: 'image',
+      image,
+      caption: caption || '',
+      timestamp: nowIso(),
+    };
+    io.to(roomId).emit('chat-msg', payload);
   });
 
   socket.on('disconnect', () => {
