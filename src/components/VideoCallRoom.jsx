@@ -2,51 +2,30 @@ import React, { useEffect, useRef, useState } from 'react';
 import useSocket from '../hooks/useSocket';
 import useServerActive from '../hooks/useServerActive';
 
+const IS_LOCAL = !import.meta.env.VITE_SIGNALING_URL;
+
 const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) => {
   const [myPeerId, setMyPeerId] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [activeRooms, setActiveRooms] = useState([]);
-  const [roomsLoading, setRoomsLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
 
   const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(signalingUrl, {
-    proxyBaseUrl: '/api',
+    proxyBaseUrl: IS_LOCAL ? '' : '/api',
   });
   const { socket, connected: socketConnected, error: socketError } = useSocket(signalingUrl, {
     enabled: Boolean(signalingUrl) && serverActive && !serverWaking,
     transports: ['websocket'],
   });
 
-  const fetchRooms = async () => {
-    try {
-      setRoomsLoading(true);
-      const res = await fetch('/api/rooms');
-      if (!res.ok) {
-        console.warn('[rooms] fetch failed', { status: res.status });
-        return;
-      }
-      const data = await res.json();
-      setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
-    } catch (e) {
-      console.warn('[rooms] fetch error', e);
-    } finally {
-      setRoomsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!serverActive) return;
-    fetchRooms();
-    const id = setInterval(fetchRooms, 5000);
-    return () => clearInterval(id);
-  }, [serverActive]);
 
   // A/V States - Default to ON
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCamOn, setIsCamOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [isCamOn, setIsCamOn] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
 
   const localVideoRef = useRef(null);
   const remoteVideosRef = useRef({});
@@ -70,11 +49,17 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('connect', () => {
+    const joinRoom = () => {
       console.log('[socket] connected', { id: socket.id, roomId, displayName });
       socket.emit('join-room', { roomId, displayName });
       console.log('[socket] emit join-room', { roomId, displayName });
-    });
+    };
+
+    socket.on('connect', joinRoom);
+
+    if (socket.connected) {
+      joinRoom();
+    }
 
     socket.on('room-joined', async ({ peerId, participants: list }) => {
       console.log('[socket] room-joined', { roomId, peerId, participants: list?.length || 0 });
@@ -86,6 +71,8 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
         localStreamRef.current = stream;
+        stream.getAudioTracks().forEach(t => t.enabled = false);
+        stream.getVideoTracks().forEach(t => t.enabled = false);
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
           localVideoRef.current.onloadedmetadata = () => {
@@ -206,14 +193,14 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   };
 
   const copyRoomId = () => {
-    const url = `${window.location.origin}/video-call?room=${roomId}`;
+    const url = `${window.location.origin}/room/${encodeURIComponent(roomId)}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const shareToSocial = (platform) => {
-    const url = `${window.location.origin}/video-call?room=${roomId}`;
+    const url = `${window.location.origin}/room/${encodeURIComponent(roomId)}`;
     const text = `Join my secure video room on VigilSafe: ${roomId}`;
     let shareUrl = '';
 
@@ -324,26 +311,6 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
 
       {error && <div style={styles.errorBanner}>{error}</div>}
 
-      <div style={styles.roomsStrip}>
-        <div style={styles.roomsStripHeader}>
-          <span style={styles.roomsStripTitle}>Active Rooms</span>
-          <button type="button" onClick={fetchRooms} style={styles.roomsStripRefresh}>Refresh</button>
-        </div>
-        <div style={styles.roomsStripList}>
-          {roomsLoading ? (
-            <div style={styles.roomsStripEmpty}>Loading rooms...</div>
-          ) : activeRooms.length === 0 ? (
-            <div style={styles.roomsStripEmpty}>No active rooms right now.</div>
-          ) : (
-            activeRooms.slice(0, 8).map((r) => (
-              <div key={r.roomId} style={styles.roomsStripItem}>
-                <span style={styles.roomsStripItemId}>{r.roomId}</span>
-                <span style={styles.roomsStripItemCount}>{r.count}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
       <div style={styles.main}>
         <div style={styles.videoSection}>
@@ -462,30 +429,6 @@ const styles = {
     overflow: 'hidden',
     fontFamily: '-apple-system, system-ui, sans-serif',
   },
-  roomsStrip: {
-    maxWidth: '1200px',
-    margin: '0 auto 16px auto',
-    padding: '12px 14px',
-    borderRadius: '14px',
-    background: 'rgba(30, 41, 59, 0.35)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-  },
-  roomsStripHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' },
-  roomsStripTitle: { fontSize: '12px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' },
-  roomsStripRefresh: { background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '800', fontSize: '12px' },
-  roomsStripList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  roomsStripEmpty: { color: '#64748b', fontSize: '13px', padding: '6px 2px' },
-  roomsStripItem: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '8px 10px',
-    borderRadius: '12px',
-    border: '1px solid rgba(255,255,255,0.06)',
-    background: 'rgba(2, 6, 23, 0.35)',
-  },
-  roomsStripItemId: { fontSize: '13px', fontWeight: '700', color: '#e2e8f0' },
-  roomsStripItemCount: { fontSize: '12px', fontWeight: '900', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.12)', padding: '3px 10px', borderRadius: '999px', border: '1px solid rgba(59, 130, 246, 0.18)' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',

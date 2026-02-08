@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import VideoCallRoom from './VideoCallRoom';
 import useServerActive from '../hooks/useServerActive';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'http://localhost:3002';
-const DEFAULT_QUICK_ROOM = 'room-SafyHaji-YathAffae';
+const IS_LOCAL = !import.meta.env.VITE_SIGNALING_URL;
+const DEFAULT_QUICK_ROOM = 'room-SHFY';
 
 const generateGuestName = () => {
   const adjectives = ['Swift', 'Calm', 'Bright', 'Silent', 'Brave', 'Kind', 'Smart', 'Nova', 'Shadow', 'Crystal'];
@@ -19,7 +19,6 @@ const generateGuestName = () => {
 const VideoCall = () => {
   const [roomId, setRoomId] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [joined, setJoined] = useState(false);
   const [error, setError] = useState('');
   const [activeRooms, setActiveRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
@@ -30,7 +29,7 @@ const VideoCall = () => {
   const location = useLocation();
 
   const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(SIGNALING_URL, {
-    proxyBaseUrl: '/api',
+    proxyBaseUrl: IS_LOCAL ? '' : '/api',
   });
 
   const defaultName = user?.fullName || user?.username || '';
@@ -50,23 +49,21 @@ const VideoCall = () => {
   }, [location.search, roomId, defaultName, displayName]);
 
   useEffect(() => {
-    if (!joined) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-          setPreviewStream(stream);
-          if (previewVideoRef.current) previewVideoRef.current.srcObject = stream;
-        })
-        .catch(err => console.error('Preview error:', err));
-    }
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        setPreviewStream(stream);
+        if (previewVideoRef.current) previewVideoRef.current.srcObject = stream;
+      })
+      .catch(err => console.error('Preview error:', err));
     return () => {
       previewStream?.getTracks().forEach(t => t.stop());
     };
-  }, [joined]);
+  }, []);
 
   const fetchRooms = async () => {
     try {
       setRoomsLoading(true);
-      const res = await fetch('/api/rooms');
+      const res = await fetch(IS_LOCAL ? `${SIGNALING_URL}/rooms` : '/api/rooms');
       if (!res.ok) {
         console.warn('[rooms] fetch failed', { status: res.status });
         return;
@@ -93,16 +90,13 @@ const VideoCall = () => {
       setError('Server is in sleep mode. Please wake the server to start a call.');
       return;
     }
-    const rid = DEFAULT_QUICK_ROOM;
     const name = (displayName || defaultName || 'Guest').trim();
     if (!name) {
       setError('Please enter a display name');
       return;
     }
     previewStream?.getTracks().forEach(t => t.stop());
-    setRoomId(rid);
-    setDisplayName(name);
-    setJoined(true);
+    navigate(`/room/${encodeURIComponent(DEFAULT_QUICK_ROOM)}`, { state: { displayName: name } });
   };
 
   useEffect(() => {
@@ -140,21 +134,8 @@ const VideoCall = () => {
       return;
     }
     previewStream?.getTracks().forEach(t => t.stop());
-    setDisplayName(name);
-    setJoined(true);
+    navigate(`/room/${encodeURIComponent(rid)}`, { state: { displayName: name } });
   };
-
-  if (joined && roomId.trim()) {
-    return (
-      <VideoCallRoom
-        roomId={roomId.trim()}
-        displayName={(displayName || defaultName || 'Guest').trim()}
-        signalingUrl={SIGNALING_URL}
-        onLeave={() => setJoined(false)}
-        onBack={() => navigate(-1)}
-      />
-    );
-  }
 
   return (
     <div style={styles.container}>

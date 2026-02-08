@@ -47,6 +47,17 @@ let piStreamUrl = '';
 
 const nowIso = () => new Date().toISOString();
 
+const getRoomsSnapshot = () => {
+  const list = Array.from(rooms.entries()).map(([roomId, room]) => {
+    return {
+      roomId,
+      count: room.size,
+    };
+  });
+  list.sort((a, b) => b.count - a.count);
+  return list;
+};
+
 const requireAdmin = (req, res, next) => {
   if (!ADMIN_TOKEN) {
     return res.status(500).json({ error: 'ADMIN_TOKEN not set on server' });
@@ -119,13 +130,8 @@ app.post('/pi/stream', requirePiToken, (req, res) => {
 });
 
 app.get('/rooms', (req, res) => {
-  const list = Array.from(rooms.entries()).map(([roomId, room]) => {
-    return {
-      roomId,
-      count: room.size,
-    };
-  });
-  list.sort((a, b) => b.count - a.count);
+  const list = getRoomsSnapshot();
+  console.log('[http] /rooms', { count: list.length, rooms: list });
   res.json({ rooms: list, ts: nowIso() });
 });
 
@@ -159,6 +165,8 @@ io.on('connection', (socket) => {
     const participants = Array.from(room.values());
     socket.emit('room-joined', { roomId, peerId, participants, piStreamUrl: piStreamUrl || null });
     socket.to(roomId).emit('user-joined', { peerId, displayName, participants });
+
+    io.emit('rooms-updated', { rooms: getRoomsSnapshot(), ts: nowIso() });
   });
 
   // WebRTC bridge messages.
@@ -209,6 +217,8 @@ io.on('connection', (socket) => {
     room.delete(socket.id);
     if (room.size === 0) rooms.delete(roomId);
     socket.to(roomId).emit('user-left', { peerId: socket.id, participants: Array.from(room.values()) });
+
+    io.emit('rooms-updated', { rooms: getRoomsSnapshot(), ts: nowIso() });
   });
 });
 

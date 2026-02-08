@@ -1,28 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
 export default function useSocket(url, {
   enabled = true,
-  autoConnect = true,
   transports = ['websocket'],
-  extraOptions = {},
 } = {}) {
+  const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
   const socketRef = useRef(null);
-
-  const options = useMemo(() => {
-    return {
-      autoConnect: enabled && autoConnect,
-      transports,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 500,
-      reconnectionDelayMax: 4000,
-      timeout: 10000,
-      ...extraOptions,
-    };
-  }, [enabled, autoConnect, transports, extraOptions]);
+  const transportsRef = useRef(transports);
 
   useEffect(() => {
     if (!url || !enabled) {
@@ -30,38 +17,54 @@ export default function useSocket(url, {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      setSocket(null);
       setConnected(false);
       return;
     }
 
-    const socket = io(url, options);
-    socketRef.current = socket;
+    const s = io(url, {
+      autoConnect: true,
+      transports: transportsRef.current,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 4000,
+      timeout: 10000,
+    });
+    socketRef.current = s;
+    setSocket(s);
 
     const onConnect = () => {
+      console.log('[useSocket] connected', s.id);
       setConnected(true);
       setError(null);
     };
-    const onDisconnect = () => setConnected(false);
+    const onDisconnect = () => {
+      console.log('[useSocket] disconnected');
+      setConnected(false);
+    };
     const onConnectError = (e) => {
+      console.log('[useSocket] connect_error', e?.message);
       setConnected(false);
       setError(e);
     };
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('connect_error', onConnectError);
+    s.on('connect', onConnect);
+    s.on('disconnect', onDisconnect);
+    s.on('connect_error', onConnectError);
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('connect_error', onConnectError);
-      socket.disconnect();
+      s.off('connect', onConnect);
+      s.off('disconnect', onDisconnect);
+      s.off('connect_error', onConnectError);
+      s.disconnect();
       socketRef.current = null;
+      setSocket(null);
     };
-  }, [url, enabled, options]);
+  }, [url, enabled]);
 
   return {
-    socket: socketRef.current,
+    socket,
     connected,
     error,
   };
