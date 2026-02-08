@@ -67,11 +67,14 @@ const VideoCall = () => {
     try {
       setRoomsLoading(true);
       const res = await fetch('/api/rooms');
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('[rooms] fetch failed', { status: res.status });
+        return;
+      }
       const data = await res.json();
       setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('[rooms] fetch error', e);
     } finally {
       setRoomsLoading(false);
     }
@@ -214,6 +217,17 @@ const VideoCall = () => {
                 Server is in sleep mode. Click <strong>Wake Server</strong> above, then join.
               </div>
             )}
+            <div style={styles.field}>
+              <label style={styles.label}>Display Name</label>
+              <input
+                type="text"
+                value={displayName || defaultName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="How others see you"
+                style={styles.input}
+                disabled={!serverActive}
+              />
+            </div>
             <div style={styles.quickJoinWrap}>
               <button
                 type="button"
@@ -275,17 +289,7 @@ const VideoCall = () => {
                 autoFocus
               />
             </div>
-            <div style={styles.field}>
-              <label style={styles.label}>Display Name</label>
-              <input
-                type="text"
-                value={displayName || defaultName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="How others see you"
-                style={styles.input}
-                disabled={!serverActive}
-              />
-            </div>
+            
             <button type="submit" style={{ ...styles.joinBtn, opacity: serverActive ? 1 : 0.6, cursor: serverActive ? 'pointer' : 'not-allowed' }} disabled={!serverActive}>
               Enter Room
             </button>

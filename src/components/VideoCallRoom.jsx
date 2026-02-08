@@ -5,8 +5,8 @@ import useServerActive from '../hooks/useServerActive';
 const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) => {
   const [myPeerId, setMyPeerId] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,6 +17,30 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     enabled: Boolean(signalingUrl) && serverActive && !serverWaking,
     transports: ['websocket'],
   });
+
+  const fetchRooms = async () => {
+    try {
+      setRoomsLoading(true);
+      const res = await fetch('/api/rooms');
+      if (!res.ok) {
+        console.warn('[rooms] fetch failed', { status: res.status });
+        return;
+      }
+      const data = await res.json();
+      setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
+    } catch (e) {
+      console.warn('[rooms] fetch error', e);
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!serverActive) return;
+    fetchRooms();
+    const id = setInterval(fetchRooms, 5000);
+    return () => clearInterval(id);
+  }, [serverActive]);
 
   // A/V States - Default to ON
   const [isMicOn, setIsMicOn] = useState(true);
@@ -300,6 +324,27 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
 
       {error && <div style={styles.errorBanner}>{error}</div>}
 
+      <div style={styles.roomsStrip}>
+        <div style={styles.roomsStripHeader}>
+          <span style={styles.roomsStripTitle}>Active Rooms</span>
+          <button type="button" onClick={fetchRooms} style={styles.roomsStripRefresh}>Refresh</button>
+        </div>
+        <div style={styles.roomsStripList}>
+          {roomsLoading ? (
+            <div style={styles.roomsStripEmpty}>Loading rooms...</div>
+          ) : activeRooms.length === 0 ? (
+            <div style={styles.roomsStripEmpty}>No active rooms right now.</div>
+          ) : (
+            activeRooms.slice(0, 8).map((r) => (
+              <div key={r.roomId} style={styles.roomsStripItem}>
+                <span style={styles.roomsStripItemId}>{r.roomId}</span>
+                <span style={styles.roomsStripItemCount}>{r.count}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div style={styles.main}>
         <div style={styles.videoSection}>
           <div style={styles.videoGrid}>
@@ -417,6 +462,30 @@ const styles = {
     overflow: 'hidden',
     fontFamily: '-apple-system, system-ui, sans-serif',
   },
+  roomsStrip: {
+    maxWidth: '1200px',
+    margin: '0 auto 16px auto',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    background: 'rgba(30, 41, 59, 0.35)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  roomsStripHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' },
+  roomsStripTitle: { fontSize: '12px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' },
+  roomsStripRefresh: { background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '800', fontSize: '12px' },
+  roomsStripList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  roomsStripEmpty: { color: '#64748b', fontSize: '13px', padding: '6px 2px' },
+  roomsStripItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 10px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.06)',
+    background: 'rgba(2, 6, 23, 0.35)',
+  },
+  roomsStripItemId: { fontSize: '13px', fontWeight: '700', color: '#e2e8f0' },
+  roomsStripItemCount: { fontSize: '12px', fontWeight: '900', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.12)', padding: '3px 10px', borderRadius: '999px', border: '1px solid rgba(59, 130, 246, 0.18)' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
