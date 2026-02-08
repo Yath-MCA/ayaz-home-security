@@ -6,7 +6,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
-import VideoCallWithProtection from './components/VideoCall';
+import VideoCall from './components/VideoCall';
 import About from './components/About';
 import Contact from './components/Contact';
 
@@ -35,7 +35,7 @@ function App() {
           />
           <Route
             path="/video-call"
-            element={<VideoCallWithProtection />}
+            element={<VideoCall />}
           />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

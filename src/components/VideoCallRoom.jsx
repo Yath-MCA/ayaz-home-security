@@ -47,10 +47,13 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     if (!socket) return;
 
     socket.on('connect', () => {
+      console.log('[socket] connected', { id: socket.id, roomId, displayName });
       socket.emit('join-room', { roomId, displayName });
+      console.log('[socket] emit join-room', { roomId, displayName });
     });
 
     socket.on('room-joined', async ({ peerId, participants: list }) => {
+      console.log('[socket] room-joined', { roomId, peerId, participants: list?.length || 0 });
       myPeerIdRef.current = peerId;
       setMyPeerId(peerId);
       setConnected(true);
@@ -59,13 +62,20 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
         localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.onloadedmetadata = () => {
+            localVideoRef.current?.play?.().catch(() => {});
+          };
+          localVideoRef.current.play?.().catch(() => {});
+        }
       } catch (err) {
         setError('Could not access camera/microphone.');
       }
     });
 
     socket.on('user-joined', async ({ peerId, displayName: name, participants: list }) => {
+      console.log('[socket] user-joined', { roomId, peerId, name, participants: list?.length || 0 });
       setParticipants(list.map(p => ({ ...p, isMicOn: p.isMicOn ?? true, isCamOn: p.isCamOn ?? true })) || []);
       if (!localStreamRef.current) return;
 
@@ -78,6 +88,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     });
 
     socket.on('signal', async ({ from, type, data }) => {
+      console.log('[socket] signal received', { from, type });
       let pc = peersRef.current[from];
       if (type === 'offer') {
         pc = createPeerConnection(from, socket);
@@ -96,10 +107,12 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     });
 
     socket.on('user-left', ({ participants: list }) => {
+      console.log('[socket] user-left', { roomId, participants: list?.length || 0 });
       setParticipants(list.map(p => ({ ...p, isMicOn: true, isCamOn: true })) || []);
     });
 
     socket.on('chat-message', (msg) => {
+      console.log('[socket] chat-message received', msg);
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last && msg.from === myPeerIdRef.current && last.message === msg.message) return prev;
@@ -136,6 +149,10 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
       const vid = remoteVideosRef.current[peerId];
       if (vid && vid.srcObject !== e.streams[0]) {
         vid.srcObject = e.streams[0];
+        vid.onloadedmetadata = () => {
+          vid.play?.().catch(() => {});
+        };
+        vid.play?.().catch(() => {});
       }
     };
 
@@ -195,6 +212,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev.slice(-199), payload]);
+    console.log('[socket] emit chat-message', { roomId, message: text });
     socket.emit('chat-message', text);
     setChatInput('');
   };

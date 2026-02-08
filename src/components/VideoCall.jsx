@@ -1,27 +1,53 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import ProtectedRoute from './ProtectedRoute';
 import VideoCallRoom from './VideoCallRoom';
 import useServerActive from '../hooks/useServerActive';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'http://localhost:3002';
+const DEFAULT_QUICK_ROOM = 'room-SafyHaji-YathAffae';
+
+const generateGuestName = () => {
+  const adjectives = ['Swift', 'Calm', 'Bright', 'Silent', 'Brave', 'Kind', 'Smart', 'Nova', 'Shadow', 'Crystal'];
+  const nouns = ['Visitor', 'Guest', 'Watcher', 'Guardian', 'Friend', 'Helper', 'Member', 'Partner', 'Caller', 'User'];
+  const a = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const n = nouns[Math.floor(Math.random() * nouns.length)];
+  const num = Math.floor(100 + Math.random() * 900);
+  return `${a}${n}${num}`;
+};
 
 const VideoCall = () => {
   const [roomId, setRoomId] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [joined, setJoined] = useState(false);
   const [error, setError] = useState('');
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   const [previewStream, setPreviewStream] = useState(null);
   const previewVideoRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(SIGNALING_URL, {
     proxyBaseUrl: '/api',
   });
 
   const defaultName = user?.fullName || user?.username || '';
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const roomFromUrl = (params.get('room') || '').trim();
+    const nameFromUrl = (params.get('name') || '').trim();
+
+    if (roomFromUrl && !roomId) {
+      setRoomId(roomFromUrl);
+    }
+
+    if (!defaultName && !displayName) {
+      setDisplayName(nameFromUrl || generateGuestName());
+    }
+  }, [location.search, roomId, defaultName, displayName]);
 
   useEffect(() => {
     if (!joined) {
@@ -36,6 +62,45 @@ const VideoCall = () => {
       previewStream?.getTracks().forEach(t => t.stop());
     };
   }, [joined]);
+
+  const fetchRooms = async () => {
+    try {
+      setRoomsLoading(true);
+      const res = await fetch('/api/rooms');
+      if (!res.ok) return;
+      const data = await res.json();
+      setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
+    } catch {
+      // ignore
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!serverActive) return;
+    fetchRooms();
+    const id = setInterval(fetchRooms, 5000);
+    return () => clearInterval(id);
+  }, [serverActive]);
+
+  const quickJoin = () => {
+    setError('');
+    if (!serverActive) {
+      setError('Server is in sleep mode. Please wake the server to start a call.');
+      return;
+    }
+    const rid = DEFAULT_QUICK_ROOM;
+    const name = (displayName || defaultName || 'Guest').trim();
+    if (!name) {
+      setError('Please enter a display name');
+      return;
+    }
+    previewStream?.getTracks().forEach(t => t.stop());
+    setRoomId(rid);
+    setDisplayName(name);
+    setJoined(true);
+  };
 
   useEffect(() => {
     if (previewVideoRef.current && previewStream) {
@@ -67,6 +132,10 @@ const VideoCall = () => {
       setError('Please enter a room ID');
       return;
     }
+    if (!name) {
+      setError('Please enter a display name');
+      return;
+    }
     previewStream?.getTracks().forEach(t => t.stop());
     setDisplayName(name);
     setJoined(true);
@@ -87,7 +156,7 @@ const VideoCall = () => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
+        <button onClick={() => navigate('/')} style={styles.backBtn}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
         </button>
         <h1 style={styles.title}>VigilRoom Secure Video</h1>
@@ -145,6 +214,50 @@ const VideoCall = () => {
                 Server is in sleep mode. Click <strong>Wake Server</strong> above, then join.
               </div>
             )}
+            <div style={styles.quickJoinWrap}>
+              <button
+                type="button"
+                onClick={quickJoin}
+                disabled={!serverActive}
+                style={{
+                  ...styles.quickJoinBtn,
+                  opacity: serverActive ? 1 : 0.6,
+                  cursor: serverActive ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Quick Join: {DEFAULT_QUICK_ROOM}
+              </button>
+            </div>
+
+            <div style={styles.roomsPanel}>
+              <div style={styles.roomsHeader}>
+                <span style={styles.roomsTitle}>Active Rooms</span>
+                <button type="button" onClick={fetchRooms} style={styles.roomsRefresh}>
+                  Refresh
+                </button>
+              </div>
+              <div style={styles.roomsList}>
+                {roomsLoading ? (
+                  <div style={styles.roomsEmpty}>Loading rooms...</div>
+                ) : activeRooms.length === 0 ? (
+                  <div style={styles.roomsEmpty}>No active rooms right now.</div>
+                ) : (
+                  activeRooms.slice(0, 10).map((r) => (
+                    <button
+                      key={r.roomId}
+                      type="button"
+                      onClick={() => setRoomId(r.roomId)}
+                      style={styles.roomRow}
+                      title="Click to set Room ID"
+                    >
+                      <span style={styles.roomRowId}>{r.roomId}</span>
+                      <span style={styles.roomRowCount}>{r.count}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div style={styles.field}>
               <div style={styles.labelRow}>
                 <label style={styles.label}>Room Identifier</label>
@@ -325,6 +438,44 @@ const styles = {
   cardTitle: { margin: '0 0 12px 0', fontSize: '24px', fontWeight: '700', color: '#f1f5f9' },
   hint: { margin: '0 0 32px 0', color: '#94a3b8', fontSize: '15px', lineHeight: '1.6' },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
+  quickJoinWrap: { marginTop: '-6px' },
+  quickJoinBtn: {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'rgba(245, 158, 11, 0.12)',
+    color: '#fbbf24',
+    fontWeight: '900',
+    textAlign: 'left',
+  },
+  roomsPanel: {
+    padding: '14px',
+    borderRadius: '16px',
+    background: 'rgba(15, 23, 42, 0.35)',
+    border: '1px solid rgba(255,255,255,0.06)',
+  },
+  roomsHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' },
+  roomsTitle: { fontSize: '12px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' },
+  roomsRefresh: { background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '800', fontSize: '12px' },
+  roomsList: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  roomsEmpty: { color: '#64748b', fontSize: '13px', padding: '8px 2px' },
+  roomRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.06)',
+    background: 'rgba(2, 6, 23, 0.35)',
+    color: '#e2e8f0',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  roomRowId: { fontSize: '13px', fontWeight: '700', color: '#e2e8f0' },
+  roomRowCount: { fontSize: '12px', fontWeight: '900', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.12)', padding: '4px 10px', borderRadius: '999px', border: '1px solid rgba(59, 130, 246, 0.18)' },
   field: { display: 'flex', flexDirection: 'column', gap: '10px' },
   labelRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: '13px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' },
@@ -386,10 +537,4 @@ const styles = {
   },
 };
 
-export default function VideoCallWithProtection() {
-  return (
-    <ProtectedRoute>
-      <VideoCall />
-    </ProtectedRoute>
-  );
-}
+export default VideoCall;

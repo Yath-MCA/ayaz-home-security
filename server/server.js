@@ -118,6 +118,17 @@ app.post('/pi/stream', requirePiToken, (req, res) => {
   res.json({ ok: true, url: piStreamUrl, ts: nowIso() });
 });
 
+app.get('/rooms', (req, res) => {
+  const list = Array.from(rooms.entries()).map(([roomId, room]) => {
+    return {
+      roomId,
+      count: room.size,
+    };
+  });
+  list.sort((a, b) => b.count - a.count);
+  res.json({ rooms: list, ts: nowIso() });
+});
+
 // --- Socket.io signaling ---
 io.use((socket, next) => {
   if (!isActive) {
@@ -133,6 +144,8 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Room ID and display name required' });
       return;
     }
+
+    console.log('[socket] join-room', { socketId: socket.id, roomId, displayName });
 
     const peerId = socket.id;
     if (!rooms.has(roomId)) rooms.set(roomId, new Map());
@@ -172,6 +185,8 @@ io.on('connection', (socket) => {
     const roomId = socket.data.roomId;
     if (!roomId) return;
 
+    console.log('[socket] chat-message', { socketId: socket.id, roomId, message });
+
     const room = rooms.get(roomId);
     const payload = {
       from: socket.id,
@@ -181,6 +196,7 @@ io.on('connection', (socket) => {
     };
 
     io.to(roomId).emit('chat-message', payload);
+    console.log('[socket] chat-message broadcast', { roomId, from: payload.from });
   });
 
   socket.on('disconnect', () => {
