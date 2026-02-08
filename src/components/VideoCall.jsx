@@ -21,8 +21,7 @@ const VideoCall = () => {
   const [error, setError] = useState('');
   const [activeRooms, setActiveRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
-  const [previewStream, setPreviewStream] = useState(null);
-  const previewVideoRef = useRef(null);
+  const [permissionStatus, setPermissionStatus] = useState('checking');
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,18 +41,23 @@ const VideoCall = () => {
   }, [location.search, roomId, defaultName, displayName]);
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        setPreviewStream(stream);
-        if (previewVideoRef.current) previewVideoRef.current.srcObject = stream;
-      })
-      .catch(() => {});
-    return () => { previewStream?.getTracks().forEach(t => t.stop()); };
+    checkPermissions();
   }, []);
 
-  useEffect(() => {
-    if (previewVideoRef.current && previewStream) previewVideoRef.current.srcObject = previewStream;
-  }, [previewStream]);
+  const checkPermissions = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setPermissionStatus('granted');
+    } catch (err) {
+      setPermissionStatus('denied');
+    }
+  };
+
+  const requestPermissions = async () => {
+    setPermissionStatus('requesting');
+    await checkPermissions();
+  };
 
   const fetchRooms = async () => {
     try {
@@ -76,7 +80,6 @@ const VideoCall = () => {
   const goRoom = (rid) => {
     const name = (displayName || defaultName || 'Guest').trim();
     if (!name) { setError('Enter your name'); return; }
-    previewStream?.getTracks().forEach(t => t.stop());
     navigate(`/room/${encodeURIComponent(rid)}`, { state: { displayName: name } });
   };
 
@@ -122,10 +125,31 @@ const VideoCall = () => {
           )}
         </div>
 
-        {/* Preview */}
-        <div style={st.previewWrap}>
-          <video ref={previewVideoRef} autoPlay playsInline muted style={st.previewVideo} />
-          {!previewStream && <div style={st.previewOff}>Camera off</div>}
+        {/* Permission Status */}
+        <div style={st.permissionCard}>
+          {permissionStatus === 'checking' && (
+            <div style={st.permissionContent}>
+              <div style={st.permissionIcon}>🔍</div>
+              <div style={st.permissionText}>Checking permissions...</div>
+            </div>
+          )}
+          {permissionStatus === 'granted' && (
+            <div style={st.permissionContent}>
+              <div style={{ ...st.permissionIcon, color: '#00a884' }}>✓</div>
+              <div style={st.permissionText}>Camera & Mic Access Enabled</div>
+              <div style={st.permissionHint}>Ready to join video call</div>
+            </div>
+          )}
+          {permissionStatus === 'denied' && (
+            <div style={st.permissionContent}>
+              <div style={{ ...st.permissionIcon, color: '#ea4335' }}>✕</div>
+              <div style={st.permissionText}>Camera & Mic Access Disabled</div>
+              <div style={st.permissionHint}>Click below to enable</div>
+              <button onClick={requestPermissions} style={st.enableBtn} disabled={permissionStatus === 'requesting'}>
+                {permissionStatus === 'requesting' ? 'Requesting...' : 'Enable Access'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Form */}
@@ -191,9 +215,12 @@ const st = {
   dot: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
   serverLabel: { flex: 1, fontSize: '13px', fontWeight: '600', color: '#aebac1' },
   wakeBtn: { background: '#f59e0b', border: 'none', color: '#111b21', fontSize: '12px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' },
-  previewWrap: { position: 'relative', borderRadius: '12px', overflow: 'hidden', background: '#0b141a', aspectRatio: '16/10' },
-  previewVideo: { width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' },
-  previewOff: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px' },
+  permissionCard: { padding: '32px 20px', borderRadius: '12px', background: '#1f2c34', textAlign: 'center' },
+  permissionContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' },
+  permissionIcon: { fontSize: '48px', lineHeight: 1 },
+  permissionText: { fontSize: '16px', fontWeight: '600', color: '#e9edef' },
+  permissionHint: { fontSize: '13px', color: '#8696a0' },
+  enableBtn: { marginTop: '8px', padding: '10px 24px', borderRadius: '8px', border: 'none', background: '#00a884', color: '#fff', fontWeight: '700', fontSize: '14px', cursor: 'pointer' },
   form: { display: 'flex', flexDirection: 'column', gap: '12px' },
   error: { padding: '10px 14px', background: 'rgba(234,67,53,0.15)', borderRadius: '8px', color: '#f87171', fontSize: '13px' },
   input: { padding: '12px 14px', background: '#2a3942', border: 'none', borderRadius: '8px', color: '#e9edef', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' },

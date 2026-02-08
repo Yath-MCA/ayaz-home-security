@@ -1,0 +1,5 @@
+{
+  "appId": "com.homesecurity.app",
+  "appName": "home-security# Enter details:# App name: Home Security# App ID: com.homesecurity.app# Web directory: dist# 3. Build your React appnpm run build# 4. Add Android platformnpx cap add android# 5. Sync web assets to Androidnpx cap sync# 6. Open in Android Studionpx cap open android",
+  "webDir": "dist"
+}

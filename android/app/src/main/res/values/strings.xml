@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">home-security# Enter details:# App name: Home Security# App ID: com.homesecurity.app# Web directory: dist# 3. Build your React appnpm run build# 4. Add Android platformnpx cap add android# 5. Sync web assets to Androidnpx cap sync# 6. Open in Android Studionpx cap open android</string>
+    <string name="title_activity_main">home-security# Enter details:# App name: Home Security# App ID: com.homesecurity.app# Web directory: dist# 3. Build your React appnpm run build# 4. Add Android platformnpx cap add android# 5. Sync web assets to Androidnpx cap sync# 6. Open in Android Studionpx cap open android</string>
+    <string name="package_name">com.homesecurity.app</string>
+    <string name="custom_url_scheme">com.homesecurity.app</string>
+</resources>
