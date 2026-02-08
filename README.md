@@ -37,7 +37,95 @@ npm install
 npm start
 ```
 
-Server runs at `http://localhost:3002`. Set `VITE_SIGNALING_URL` in `.env` if you use a different URL.
+Server runs at `http://localhost:3002`.
+
+Set `VITE_SIGNALING_URL` in `.env` (or Vercel env vars) if you use a different URL.
+
+## Signaling / Wake / Admin (Render + Vercel)
+
+This project uses:
+
+- **Render**: hosts the Node.js Socket.io signaling server (`server/server.js`)
+- **Vercel**: hosts the Vite frontend and optional serverless proxy endpoints (`/api/*`) used for waking the Render instance and admin controls
+
+### Render: Signaling Server
+
+The signaling server entrypoint is:
+
+- `server/server.js`
+
+HTTP endpoints:
+
+- `GET /health`
+- `GET /status`
+- `POST /wake`
+- `POST /admin/active` (requires `ADMIN_TOKEN`)
+- `GET /pi/stream`
+- `POST /pi/stream` (requires `PI_TOKEN`)
+
+Socket.io events (room-based):
+
+- `join-room`
+- `signal` (offer/answer/ice/status-update)
+- `chat-message`
+
+### Render Environment Variables
+
+Set these in Render (Server-side):
+
+- `CORS_ORIGIN`
+  - Comma-separated list of allowed origins or `*` for testing.
+  - Example: `https://your-app.vercel.app`
+- `ADMIN_TOKEN`
+  - Secret used by `POST /admin/active`
+- `PI_TOKEN`
+  - Secret used by `POST /pi/stream`
+- Optional: `DEFAULT_ACTIVE`
+  - `true` or `false`
+
+### Vercel Environment Variables
+
+Client-side (exposed to the browser):
+
+- `VITE_SIGNALING_URL`
+  - Must point to the Render base URL.
+  - Example: `https://your-render-service.onrender.com`
+
+Server-side (kept private on Vercel):
+
+- `RENDER_BACKEND_URL`
+  - Render base URL used by Vercel serverless proxy endpoints.
+  - Example: `https://your-render-service.onrender.com`
+- `ADMIN_TOKEN`
+  - Only required if you want to call `POST /api/admin-active`.
+  - Do NOT expose this in `VITE_*` variables.
+
+### Vercel Serverless Proxy Endpoints
+
+To avoid browser CORS issues and to keep secrets server-side, this repo includes:
+
+- `GET /api/status` -> forwards to Render `/status`
+- `POST /api/wake` -> forwards to Render `/wake`
+- `POST /api/admin-active` -> forwards to Render `/admin/active` with `Authorization: Bearer ADMIN_TOKEN`
+
+### Wake Server Flow (Video Call)
+
+The Video Call page shows a **Wake Server** button when the signaling server is sleeping.
+
+- When sleeping, the join form is disabled
+- Clicking **Wake Server** triggers `POST /api/wake`
+- Once the server reports `active: true`, joining a room is enabled
+
+### Quick Test
+
+After deploying:
+
+- Check status:
+  - `https://YOUR_VERCEL_DOMAIN/api/status`
+- Wake server:
+  - `POST https://YOUR_VERCEL_DOMAIN/api/wake`
+- Admin on/off (optional):
+  - `POST https://YOUR_VERCEL_DOMAIN/api/admin-active` with JSON body `{ "active": false }`
 
 ### Build for Production
 
