@@ -164,24 +164,9 @@ const UserManagement = () => {
         <div style={styles.headerLeft}>
           <h1 style={styles.title}>👥 User Management</h1>
           <nav style={styles.nav}>
-            <button
-              onClick={() => navigate('/dashboard')}
-              style={styles.navButton}
-            >
-              📹 Dashboard
-            </button>
-            <button
-              onClick={() => navigate('/users')}
-              style={styles.navButtonActive}
-            >
-              👥 Users
-            </button>
-            <button
-              onClick={() => navigate('/video-call')}
-              style={styles.navButton}
-            >
-              📹 Video Call
-            </button>
+            <button onClick={() => navigate('/dashboard')} style={styles.navButton}>📹 Dashboard</button>
+            <button onClick={() => navigate('/users')} style={styles.navButtonActive}>👥 Users</button>
+            <button onClick={() => navigate('/video-call')} style={styles.navButton}>📹 Video Call</button>
           </nav>
         </div>
         <div style={styles.headerRight}>
@@ -566,8 +551,9 @@ const styles = {
     background: 'rgba(30, 41, 59, 0.6)',
     border: '1px solid rgba(71, 85, 105, 0.3)',
     borderRadius: '12px',
-    overflow: 'hidden',
+    overflowX: 'auto',
     backdropFilter: 'blur(10px)',
+    WebkitOverflowScrolling: 'touch',
   },
 
   table: {

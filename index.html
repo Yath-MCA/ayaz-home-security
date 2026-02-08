@@ -1,57 +1,129 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Home Security Dashboard</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Security Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: #0f172a;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
-      
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-          sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        background: #0f172a;
-        color: #fff;
-        overflow-x: hidden;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
       }
-      
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+      /* Mobile Responsiveness Overrides */
+      @media (max-width: 900px) {
+        /* General Grid Stacking */
+        [style*="grid-template-columns"], [style*="gridTemplateColumns"] {
+          grid-template-columns: 1fr !important;
+        }
+
+        /* Specific Layouts */
+        div[style*="display: flex"][style*="padding: 16px"],
+        div[style*="display: flex"][style*="padding: 24px"] {
+          flex-direction: column !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+
+        /* Sidebars */
+        div[style*="width: 320px"], div[style*="width: 350px"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+        }
+
+        /* Home page action grid */
+        div[style*="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr))"] {
+          grid-template-columns: 1fr !important;
+        }
+        
+        /* Video grid adjustments */
+        div[style*="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))"] {
+          grid-template-columns: 1fr !important;
         }
       }
-      
-      @keyframes pulse {
-        0%, 100% {
-          opacity: 1;
+
+      @media (max-width: 600px) {
+        header {
+          padding: 16px !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 16px !important;
         }
-        50% {
-          opacity: 0.5;
+        
+        div[style*="display: flex"][style*="gap: 24px"] {
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+
+        .title, h1, h2 {
+          font-size: 24px !important;
+          text-align: center !important;
+        }
+
+        nav {
+          justify-content: center !important;
+          flex-wrap: wrap !important;
+        }
+
+        /* Floating controls positioning */
+        div[style*="position: absolute"][style*="bottom: 24px"] {
+          width: 95% !important;
+          bottom: 12px !important;
+          padding: 8px 12px !important;
         }
       }
-      
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

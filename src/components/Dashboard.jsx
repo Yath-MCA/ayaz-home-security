@@ -47,13 +47,13 @@ const Dashboard = () => {
   const connectWebSocket = () => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//localhost:3001`;
-    
+
     const websocket = new WebSocket(wsUrl);
-    
+
     websocket.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        
+
         if (msg.type === 'initial-data') {
           setAlerts(msg.alerts);
         } else if (msg.type === 'new-alert') {
@@ -65,15 +65,15 @@ const Dashboard = () => {
         console.error('WebSocket message error:', e);
       }
     };
-    
+
     websocket.onclose = () => {
       setTimeout(connectWebSocket, 3000);
     };
-    
+
     websocket.onerror = () => {
       // Silently handle WebSocket errors (backend might not be running)
     };
-    
+
     setWs(websocket);
   };
 
@@ -98,7 +98,7 @@ const Dashboard = () => {
     );
   }
 
-  const hlsUrl = selectedCamera 
+  const hlsUrl = selectedCamera
     ? `${API_URL}/api/cameras/${selectedCamera.id}/stream`
     : null;
 
@@ -136,9 +136,6 @@ const Dashboard = () => {
               <span style={styles.userRole}>Admin</span>
             )}
           </div>
-          <div style={styles.alertBadge}>
-            🔔 {alerts.length} Alerts
-          </div>
           <button onClick={handleLogout} style={styles.logoutButton}>
             🚪 Logout
           </button>
@@ -150,10 +147,10 @@ const Dashboard = () => {
         {/* Video Section */}
         <div style={styles.videoSection}>
           <h2 style={styles.videoTitle}>
-            {selectedCamera 
-              ? selectedCamera.name 
-              : cameras.length === 0 
-                ? 'Device Camera' 
+            {selectedCamera
+              ? selectedCamera.name
+              : cameras.length === 0
+                ? 'Device Camera'
                 : 'Select a camera'}
           </h2>
           {selectedCamera ? (
