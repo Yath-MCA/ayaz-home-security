@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
+import useSocket from '../hooks/useSocket';
+import useServerActive from '../hooks/useServerActive';
 
 const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) => {
   const [myPeerId, setMyPeerId] = useState(null);
@@ -8,6 +9,12 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const [chatInput, setChatInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
+
+  const { active: serverActive, checking: serverChecking, waking: serverWaking, wake } = useServerActive(signalingUrl);
+  const { socket, connected: socketConnected, error: socketError } = useSocket(signalingUrl, {
+    enabled: Boolean(signalingUrl) && serverActive && !serverWaking,
+    transports: ['websocket'],
+  });
 
   // A/V States - Default to ON
   const [isMicOn, setIsMicOn] = useState(true);
@@ -19,12 +26,23 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const remoteVideosRef = useRef({});
   const peersRef = useRef({});
   const localStreamRef = useRef(null);
-  const socketRef = useRef(null);
   const myPeerIdRef = useRef(null);
 
   useEffect(() => {
-    const socket = io(signalingUrl, { autoConnect: true });
-    socketRef.current = socket;
+    if (socketError?.message) {
+      setError(socketError.message);
+    }
+  }, [socketError]);
+
+  useEffect(() => {
+    if (!serverActive && !serverChecking && !serverWaking) {
+      // Cold start / sleeping instance: trigger wake.
+      wake();
+    }
+  }, [serverActive, serverChecking, serverWaking, wake]);
+
+  useEffect(() => {
+    if (!socket) return;
 
     socket.on('connect', () => {
       socket.emit('join-room', { roomId, displayName });
@@ -93,9 +111,15 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
       Object.values(peersRef.current).forEach((pc) => pc.close());
       peersRef.current = {};
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
-      socket.disconnect();
+      socket.off('connect');
+      socket.off('room-joined');
+      socket.off('user-joined');
+      socket.off('signal');
+      socket.off('user-left');
+      socket.off('chat-message');
+      socket.off('error');
     };
-  }, [roomId, displayName, signalingUrl]);
+  }, [roomId, displayName, socket]);
 
   const createPeerConnection = (peerId, socket) => {
     const pc = new RTCPeerConnection({
@@ -126,7 +150,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach(track => track.enabled = newState);
     }
-    socketRef.current?.emit('signal', { roomId, type: 'status-update', data: { isMicOn: newState }, broadcast: true });
+    socket?.emit('signal', { roomId, type: 'status-update', data: { isMicOn: newState }, broadcast: true });
   };
 
   const toggleCam = () => {
@@ -135,7 +159,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
     if (localStreamRef.current) {
       localStreamRef.current.getVideoTracks().forEach(track => track.enabled = newState);
     }
-    socketRef.current?.emit('signal', { roomId, type: 'status-update', data: { isCamOn: newState }, broadcast: true });
+    socket?.emit('signal', { roomId, type: 'status-update', data: { isCamOn: newState }, broadcast: true });
   };
 
   const copyRoomId = () => {
@@ -161,7 +185,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const sendMessage = (e) => {
     e.preventDefault();
     const text = chatInput.trim();
-    if (!text || !socketRef.current) return;
+    if (!text || !socket) return;
     const payload = {
       from: myPeerIdRef.current || myPeerId,
       displayName,
@@ -169,14 +193,14 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev.slice(-199), payload]);
-    socketRef.current.emit('chat-message', text);
+    socket.emit('chat-message', text);
     setChatInput('');
   };
 
   const leaveRoom = () => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     Object.values(peersRef.current).forEach((pc) => pc.close());
-    socketRef.current?.disconnect();
+    socket?.disconnect();
     onLeave();
   };
 
@@ -201,6 +225,29 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
   const IconChat = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>;
   const IconLeave = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
 
+  if (!serverActive || serverChecking || serverWaking) {
+    return (
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <div style={styles.headerLeft}>
+            <button onClick={onBack} style={styles.navBtn}>✕</button>
+            <div style={styles.roomInfo}>
+              <span style={styles.roomLabel}>SECURE ROOM</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={styles.roomIdText}>{roomId}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <div style={{ padding: '24px' }}>
+          <div style={styles.errorBanner}>
+            {serverWaking ? 'Waking up server...' : serverChecking ? 'Checking server status...' : 'Server is offline'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -224,7 +271,7 @@ const VideoCallRoom = ({ roomId, displayName, signalingUrl, onLeave, onBack }) =
               <IconTelegram />
             </button>
           </div>
-          {connected && <div style={styles.statusIndicator}>● <span style={{ fontSize: '11px' }}>LIVE</span></div>}
+          {(connected || socketConnected) && <div style={styles.statusIndicator}>● <span style={{ fontSize: '11px' }}>LIVE</span></div>}
           <div style={styles.participantCount} title={participants.map(p => p.displayName).join(', ')}>
             👥 {participants.length + 1}
           </div>
